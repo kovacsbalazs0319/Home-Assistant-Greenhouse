@@ -1,0 +1,9 @@
+{
+  "domain": "bg22", 
+  "name": "BG22 Motor Control",
+  "version": "1.0.0",
+  "config_flow": true,
+  "dependencies": [],
+  "requirements": ["bleak"],
+  "iot_class": "local_polling"
+}
