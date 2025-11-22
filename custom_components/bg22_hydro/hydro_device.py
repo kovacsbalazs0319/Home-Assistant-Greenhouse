@@ -232,12 +232,12 @@ class IrrigationBLE:
         try:
             n = len(data)
             if n == 4:
-                self._flow_lpm = _unpack_f32_le(data)             # float32 LE
+                self._flow_lpm = _unpack_f32_le(data)/100               # float32 LE
             elif n == 2:
-                raw = int.from_bytes(data, "little", signed=False) # u16
-                self._flow_lpm = raw / 100.0                       # scale for now!
+                raw = int.from_bytes(data, "little", signed=False)      # u16
+                self._flow_lpm = raw / 100.0                       
             elif n == 1:
-                self._flow_lpm = float(data[0])                    # u8 fallback
+                self._flow_lpm = float(data[0])/100                     # u8 fallback
             else:
                 _LOGGER.debug("Flow notif: unexpected len=%s hex=%s", n, data.hex())
                 return
