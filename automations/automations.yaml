@@ -1,0 +1,135 @@
+- id: '1745504976687'
+  alias: Melegágy ablak – climate-based automatic window control
+  description: "Automatically adjusts window position based on light, temperature,
+    humidity,\n rain, and soil moisture."
+  triggers:
+  - trigger: time_pattern
+    minutes: /10
+  conditions:
+  - condition: state
+    entity_id: input_boolean.automata_mod
+    state: 'on'
+  actions:
+  - variables:
+      illuminance: '{{ states(''sensor.begonia_illuminance'') | float(0) }}'
+      temp: '{{ states(''sensor.begonia_temperature'') | float(0) }}'
+      humidity: '{{ states(''sensor.begonia_air_humidity'') | float(0) }}'
+      soil_moisture: '{{ states(''sensor.begonia_soil_moisture'') | float(0) }}'
+      sm_min: '{{ states(''number.begonia_min_soil_moisture'') | float(0) }}'
+      sm_max: '{{ states(''number.begonia_max_soil_moisture'') | float(0) }}'
+      is_raining: '{{ is_state(''binary_sensor.melegagy_is_raining'', ''on'') }}'
+      current_pos: '{{ states(''sensor.motor_control_position_feedback'') }}'
+      is_evening: "{{ is_state('sun.sun', 'below_horizon')\n   or now().hour >= 20\n
+        \  or now().hour < 6 }}\n"
+      I_LOW: 8000
+      T_VENT: 20
+      T_HOT: 30
+      T_COLD: 10
+      H_HIGH: 70
+      H_MAX: 90
+      POS_CLOSED: 0
+      POS_RAIN: 20
+      POS_VENT: 50
+      POS_MAX_OPEN: 80
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ soil_moisture > sm_max }}'
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_CLOSED }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: "{{ is_evening\n   or temp <= T_COLD\n   or humidity >= H_MAX
+          }}\n"
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_CLOSED }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ is_raining and current_pos > POS_RAIN }}'
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_RAIN }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: "{{ temp >= T_HOT\n   and not is_raining\n   and not is_evening\n
+          \  and soil_moisture <= sm_max }}\n"
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_MAX_OPEN }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: "{{ illuminance >= I_LOW\n   and T_VENT <= temp < T_HOT\n
+          \  and H_HIGH <= humidity < H_MAX\n   and not is_raining\n   and not is_evening\n
+          \  and soil_moisture <= sm_max }}\n"
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_VENT }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ current_pos != POS_CLOSED }}'
+      sequence:
+      - target:
+          entity_id: number.motor_control_position_set
+        data:
+          value: '{{ POS_CLOSED }}'
+        action: number.set_value
+  mode: single
+- id: '1763131194045'
+  alias: Automata locsolós
+  description: ''
+  triggers:
+  - value_template: '{% set sm  = states(''sensor.begonia_soil_moisture'') | float(0)
+      %} {% set min  = states(''number.begonia_min_soil_moisture'') | float(0)%} {%
+      set auto = is_state(''input_boolean.automata_mod'', ''on'')%} {% set HYST  =
+      2.0 %}  {{ sm < (min - HYST) and auto}}'
+    for: 00:01:00
+    trigger: template
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.80_4b_50_56_a7_28_error_code
+    below: 1
+  - condition: state
+    entity_id: input_boolean.melegagy_locsolas_tiltas
+    state: 'off'
+  - condition: template
+    value_template: '{{ 6 <= now().hour <= 20 }}'
+  - condition: numeric_state
+    entity_id: sensor.hazi_kovirozsa_temperature
+    above: 5
+  - condition: numeric_state
+    entity_id: sensor.hazi_kovirozsa_air_humidity
+    below: 90
+  actions:
+  - target:
+      entity_id: switch.80_4b_50_56_a7_28_pump
+    action: switch.turn_on
+  - delay:
+      milliseconds: 100
+  - target:
+      entity_id: switch.80_4b_50_56_a7_28_pump
+    action: switch.turn_off
+  - target:
+      entity_id: input_boolean.melegagy_locsolas_tiltas
+    action: switch.turn_on
+  - delay: 02:00:00
+  - target:
+      entity_id: input_boolean.melegagy_locsolas_tiltas
+    action: switch.turn_off
+  mode: single
