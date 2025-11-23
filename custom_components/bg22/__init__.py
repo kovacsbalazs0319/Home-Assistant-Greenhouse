@@ -15,30 +15,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BG22 integration via UI."""
     device_registry = async_get_device_registry(hass)
 
-    #Register device into registry
+    mac = entry.data["device_mac"]
+    name = entry.data.get("device_name", "BG22 Window Motor")
+
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, entry.data["device_mac"])},
+        identifiers={(DOMAIN, mac)},
+        name=name,
         manufacturer="Silicon Labs",
-        model="BG22",
-        name=entry.data["device_name"]
+        model="BG22 Motor Controller",
     )
 
-    mac = entry.data["device_mac"]
-    instance = BG22Instance(mac)
+    instance = BG22Instance(hass, mac)
     coordinator = BG22Coordinator(hass, instance)
     instance.set_coordinator(coordinator)
     await instance.connect()
 
-    #Using built_in hass.data do sync with coordinator
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "instance": instance,
         "coordinator": coordinator,
     }
 
-    
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "number"])
-
 
     return True
